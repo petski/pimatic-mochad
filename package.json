@@ -1,0 +1,27 @@
+{ 
+  "name": "pimatic-mochad",
+  "description": "Connects pimatic to mochad",
+  "author": "Patrick Kuijvenhoven <petski@github.com>",
+  "main": "mochad.coffee",
+  "files": [
+    "README.md",
+    "mochad.coffee",
+    "mochad-config-schema.coffee",
+    "mochad-device-schema.coffee"
+  ],
+  "version": "0.0.1",
+  "homepage": "https://github.com/petski/pimatic-mochad",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/petski/pimatic-mochad.git"
+  },
+  "dependencies": {
+  },
+  "peerDependencies": {
+    "pimatic": "0.7.*"
+  },
+  "engines": {
+    "node": ">0.8.x",
+    "npm": ">1.1.x"
+  }
+}
