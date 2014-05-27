@@ -88,7 +88,7 @@ module.exports = (env) ->
     # ####initConnection()
     # 
     # TODO Be a bit more efficient with connections: 12 devices devided over 3 mochads results in 12 connections instead of 3..
-    # TODO Recover self is connection is lost
+    # TODO Recover self if connection is lost
     initConnection: ->
       connection = net.createConnection(@port, @host)
 
