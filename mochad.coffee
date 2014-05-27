@@ -29,9 +29,9 @@ module.exports = (env) ->
     #     section of the config.json file 
     # 
     init: (app, @framework, config) =>
-      @conf = convict require("./mochad-config-schema")
-      @conf.load(config)
-      @conf.validate()
+      conf = convict require("./mochad-config-schema")
+      conf.load(config)
+      conf.validate()
 
     # ####createDevice()
     #  
@@ -58,16 +58,15 @@ module.exports = (env) ->
     #  * `deviceConfig`
     # 
     constructor: (deviceConfig) ->
-      # TODO doesn't work env.logger.debug(deviceConfigSchema)
-      @conf = convict(_.cloneDeep(deviceConfigSchema))
-      @conf.load(deviceConfig)
-      @conf.validate()
+      conf = convict(_.cloneDeep(deviceConfigSchema))
+      conf.load(deviceConfig)
+      conf.validate()
 
-      @name      = deviceConfig.name
-      @id        = deviceConfig.id
-      @houseunit = deviceConfig.houseunit
-      @host      = deviceConfig.host
-      @port      = deviceConfig.port
+      @name      = conf.get('name')
+      @id        = conf.get('id')
+      @houseunit = conf.get('houseunit')
+      @host      = conf.get('host')
+      @port      = conf.get('port')
 
       env.logger.debug("Initiated name='#{@name}', id='#{@id}', houseunit='#{@houseunit}', host='#{@host}', port='#{@port}'")
 

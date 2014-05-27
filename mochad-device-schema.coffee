@@ -3,11 +3,11 @@
 module.exports =
   houseunit:
     doc: "The houseunit code"
-    format: (f) -> (match = /^[A-P](\d{1,2})$/i.exec(f)) and (1 <= match[1] <= 16) # TODO doesn't work
+    format: (f) -> (if ((match = /^[A-P](\d{1,2})$/i.exec(f)) and (16 <= parseInt(match[1],10) <= 20)) then true else false) # TODO doesn't work
     default: ""
   host:
     doc: "The hostname mochad is available on"
-    format: String,
+    format: "*"
     default: "localhost"
   port:
     doc: "The port mochad is available on"
