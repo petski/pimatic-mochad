@@ -3,7 +3,10 @@
 module.exports =
   houseunit:
     doc: "The houseunit code"
-    format: (f) -> (if ((match = /^[A-P](\d{1,2})$/i.exec(f)) and (16 <= parseInt(match[1],10) <= 20)) then true else false) # TODO doesn't work
+    format: (val) -> (
+      unless ((match = /^[A-P](\d{1,2})$/i.exec(val)) and (1 <= parseInt(match[1],10) <= 16)) then throw new Error('Not a valid houseunit')
+      return
+    )
     default: ""
   host:
     doc: "The hostname mochad is available on"
