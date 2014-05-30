@@ -7,7 +7,8 @@
     "README.md",
     "mochad.coffee",
     "mochad-config-schema.coffee",
-    "mochad-device-schema.coffee"
+    "mochad-device-schema.coffee",
+    "mochad-unit-schema.coffee"
   ],
   "version": "0.0.1",
   "homepage": "https://github.com/petski/pimatic-mochad",
