@@ -8,9 +8,6 @@ module.exports = (env) ->
   # Require the [Q](https://www.npmjs.org/package/q) promise library
   Q = env.require 'q'
 
-  # Require the [cassert library](https://www.npmjs.org/package/cassert)
-  assert = env.require 'cassert'
-
   # Require [lodash](https://www.npmjs.org/package/lodash)
   _ = env.require 'lodash'
   
@@ -40,90 +37,110 @@ module.exports = (env) ->
     # 
     createDevice: (deviceConfig) =>
       switch deviceConfig.class
-        when "MochadSwitch" 
-          @framework.registerDevice(new MochadSwitch deviceConfig)
+        when "Mochad" 
+          @framework.registerDevice(new Mochad(deviceConfig, @framework))
           return true
         else
           return false
 
   # Device schema
   deviceConfigSchema = require("./mochad-device-schema")
+  # Unit schema
+  unitConfigSchema   = require("./mochad-unit-schema")
 
-  # #### Device class
-  class MochadSwitch extends env.devices.SwitchActuator
+  # #### Mochad class
+  class Mochad extends env.devices.Sensor
 
     # ####constructor()
     #  
     # #####params:
     #  * `deviceConfig`
     # 
-    constructor: (deviceConfig) ->
+    constructor: (deviceConfig, @framework) ->
       conf = convict(_.cloneDeep(deviceConfigSchema))
       conf.load(deviceConfig)
       conf.validate()
 
-      @name      = conf.get('name')
       @id        = conf.get('id')
-      @houseunit = conf.get('houseunit')
+      @name      = conf.get('name')
       @host      = conf.get('host')
       @port      = conf.get('port')
+      @house     = conf.get('house')
 
-      env.logger.debug("Initiated name='#{@name}', id='#{@id}', houseunit='#{@houseunit}', host='#{@host}', port='#{@port}'")
+      @units     = []
 
-      @connection = @initConnection()
-      @sendCommand(@connection, "st");
+      env.logger.debug("Initiated id='#{@id}', name='#{@name}', host='#{@host}', port='#{@port}', house='#{@house}'")
+
+      # TODO Validate that units is an array in case set
+      for unitConfig in deviceConfig.units
+        switch unitConfig.class
+          when "MochadSwitch" 
+            device = new MochadSwitch(@, @house, unitConfig)
+            @framework.registerDevice(device)
+            @units[device.unit] = device;
+
+      @connection = @initConnection(@host, @port)
+      @sendCommand("rftopl " + @house.toLowerCase()) # TODO RF commands are not received very well???
+      @sendCommand("st");
 
       super()
 
-    # ####changeStateTo()
-    #  
-    # #####params:
-    #  * `state`
-    # 
-    changeStateTo: (state) ->
-      @sendCommand(@connection, "pl #{@houseunit} " + ( if state then "on" else "off" ))
-      @_setState(state) # TODO remove when all output is handled well
-     
     # ####initConnection()
     # 
-    # TODO Be a bit more efficient with connections: 12 devices devided over 3 mochads results in 12 connections instead of 3..
     # TODO Recover self if connection is lost
-    initConnection: ->
-      connection = net.createConnection(@port, @host)
+    initConnection: (host, port)->
+      connection = net.createConnection(port, host)
 
       connection.on 'connect', () ->
         env.logger.debug("Opened connection")
       
       connection.on 'data', ((data) ->
-        for line in data.toString().split("\n")
-            # env.logger.debug("Received: #{line}")
+        lines = data.toString()
+        #env.logger.debug(lines)
 
-            # Handling "st" result
-            #  example: 05/26 19:16:11 House P: 1=1
-            #  example: 05/26 19:16:12 House P: 1=1,3=1
-            if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+House\s+([A-P]): ((?:\d{1,2}=[01],?)+)$/g.exec(line)
-              house = m[1]
-              if house is not @houseunit.substr(0,1) then return 
-              for unit2status in m[2].split(",")
-                  n = unit2status.split("=")
-                  houseunit = house + n[0]
-                  if houseunit is @houseunit
-                      state = if parseInt(n[1], 10) is 1 then true else false
-                      env.logger.debug("State of #{@houseunit} => #{state}");
-                      @_setState(state)
+        # Handling "st" result
+        #  example: 05/30 20:41:34 Device status
+        #  example: 05/30 20:41:34 House P: 1=1,2=0,3=0,4=0,5=0,6=0,7=0,8=0,9=0,10=0,11=0,12=0,13=0,14=0,15=0,16=0
+        if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+Device status\n\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+House\s+([A-P]): ((?:\d{1,2}=[01],?)+)$/m.exec(lines)
+          house = m[1]
+          if house is not @house then return 
+          for unit2status in m[2].split(",")
+              n = unit2status.split("=")
+              if unit = @units[n[0]] 
+                state = if parseInt(n[1], 10) is 1 then true else false
+                env.logger.debug("House #{@house} unit #{unit.unit} has state #{state}");
+                unit._setState(state)
 
-            # Handling all-units-on/off
-            #  example: 05/22 00:34:04 Rx PL House: P Func: All units on
-            #  example: 05/22 00:34:04 Rx PL House: P Func: All units off
-            else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\sRx\s+PL\s+House:\s+([A-P])\s+Func:\s+All\s+units\s+(on|off)$/g.exec(line)
-              house = m[1]
-              if house is not @houseunit.substr(0,1) then return 
-              state = if m[2] is "on" then true else false
-              env.logger.debug("State of #{@houseunit} => #{state}");
-              @_setState(state)
+        # Handling all-units-on/off
+        #  example: 05/22 00:34:04 Rx PL House: P Func: All units on
+        #  example: 05/22 00:34:04 Rx PL House: P Func: All units off
+        else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+All\s+units\s+(on|off)$/m.exec(lines)
+          house = m[3]
+          if house is not @house then return 
+          rxtx  = if m[1] is "Rx" then "received" else "sent"
+          rfpl  = if m[2] is "RF" then "RF" else "powerline"
+          state = m[4]
+          env.logger.debug("House #{@house} #{rxtx} #{rfpl} all #{state}")
+          state = if state is "on" then true else false
+          # TODO Throw this event
+          for key, unit of @units
+            unit._setState(state)
 
-            # TODO Handling simple on/off
-            #  example: 05/27 20:50:05 Rx PL House: P Func: On
+        # Handling simple on/off
+        #  example: 05/30 20:59:20 Tx PL HouseUnit: P1
+        #  example: 05/30 20:59:20 Tx PL House: P Func: On
+        else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(?:Rx|Tx)\s+(?:RF|PL)\s+HouseUnit: [A-P](\d{1,2})\n\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+(On|Off)$/m.exec(lines)
+          house = m[4]
+          if house is not @house then return 
+          code  = m[1]
+          rxtx  = if m[2] is "Rx" then "received" else "sent"
+          rfpl  = if m[3] is "RF" then "RF" else "powerline"
+          state = m[5]
+          env.logger.debug("House #{@house} unit #{code} #{rxtx} #{rfpl} #{state}")
+          state = if state is "On" then true else false
+          # TODO Throw this event
+          if unit = @units[code]
+            unit._setState(state)
       ).bind(@)
 
       connection.on 'end', (data) ->
@@ -137,8 +154,38 @@ module.exports = (env) ->
     #  * `connection`
     #  * `command`
     # 
-    sendCommand: (connection, command) ->
-      connection.write(command + "\r\n")
+    sendCommand: (command) ->
+      @connection.write(command + "\r\n")
+
+  # #### MochadSwitch class
+  class MochadSwitch extends env.devices.SwitchActuator
+
+    # ####constructor()
+    #  
+    # #####params:
+    #  * `deviceConfig`
+    # 
+    constructor: (@Mochad, @house, unitConfig) ->
+      conf = convict(_.cloneDeep(unitConfigSchema))
+      env.logger.debug(unitConfig)
+      conf.load(unitConfig)
+      conf.validate()
+
+      @id        = conf.get('id')
+      @name      = conf.get('name')
+      @unit      = conf.get('unit')
+
+      env.logger.debug("Initiated for house='#{@house}': id='#{@id}', name='#{@name}', unit='#{@unit}'")
+
+      super()
+
+    # ####changeStateTo()
+    #  
+    # #####params:
+    #  * `state`
+    # 
+    changeStateTo: (state) ->
+      @Mochad.sendCommand("pl #{@house}#{@unit} " + ( if state then "on" else "off" ))
 
   # ###Wrap up 
   myMochadPlugin = new MochadPlugin
