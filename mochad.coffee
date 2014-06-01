@@ -57,29 +57,32 @@ module.exports = (env) ->
     #  * `deviceConfig`
     # 
     constructor: (@framework, deviceConfig) ->
-      conf = convict(_.cloneDeep(deviceConfigSchema))
-      conf.load(deviceConfig)
-      conf.validate()
+      dconf = convict(_.cloneDeep(deviceConfigSchema))
+      dconf.load(deviceConfig)
+      dconf.validate()
 
-      @id        = conf.get('id')
-      @name      = conf.get('name')
-      @host      = conf.get('host')
-      @port      = conf.get('port')
-      @house     = conf.get('house')
-      @units     = conf.get('units')
+      @id        = dconf.get('id')
+      @name      = dconf.get('name')
+      @host      = dconf.get('host')
+      @port      = dconf.get('port')
+      @house     = dconf.get('house')
+      @units     = dconf.get('units')
 
       env.logger.debug("Initiated id='#{@id}', name='#{@name}', host='#{@host}', port='#{@port}', house='#{@house}'")
 
-      for unitConfig in @units
-        switch unitConfig.class
-          when "MochadSwitch" 
-            device = new MochadSwitch(@, @house, unitConfig)
-            @framework.registerDevice(device)
-            @units[device.unit] = device;
+      @unitsContainer = {}
 
+      for unitConfig in @units
+        uconf = convict(_.cloneDeep(unitConfigSchema))
+        uconf.load(unitConfig)
+        uconf.validate()
+        switch uconf.get('class')
+          when "MochadSwitch" 
+            unit = new MochadSwitch(@, @house, unitConfig)
+            @framework.registerDevice(unit)
+            @unitsContainer[unit.code] = unit;
+      
       @connection = @initConnection(@host, @port)
-      @sendCommand("rftopl " + @house.toLowerCase()) # TODO RF commands are not received very well???
-      @sendCommand("st");
 
       super()
 
@@ -89,8 +92,11 @@ module.exports = (env) ->
     initConnection: (host, port)->
       connection = net.createConnection(port, host)
 
-      connection.on 'connect', () ->
+      connection.on 'connect', (() ->
         env.logger.debug("Opened connection")
+        @sendCommand("rftopl " + @house.toLowerCase()) # TODO RF commands are not received very well???
+        @sendCommand("st")
+      ).bind(@)
       
       connection.on 'data', ((data) ->
         lines = data.toString()
@@ -102,11 +108,11 @@ module.exports = (env) ->
         if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+Device status\n\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+House\s+([A-P]): ((?:\d{1,2}=[01],?)+)$/m.exec(lines)
           house = m[1]
           if house is not @house then return 
-          for unit2status in m[2].split(",")
-              n = unit2status.split("=")
-              if unit = @units[n[0]] 
+          for code2status in m[2].split(",")
+              n = code2status.split("=")
+              if unit = @unitsContainer[n[0]] 
                 state = if parseInt(n[1], 10) is 1 then true else false
-                env.logger.debug("House #{@house} unit #{unit.unit} has state #{state}");
+                env.logger.debug("House #{@house} code #{unit.code} has state #{state}");
                 unit._setState(state)
 
         # Handling all-units-on/off
@@ -121,7 +127,7 @@ module.exports = (env) ->
           env.logger.debug("House #{@house} #{rxtx} #{rfpl} all #{state}")
           state = if state is "on" then true else false
           # TODO Throw this event
-          for key, unit of @units
+          for key, unit of @unitsContainer
             unit._setState(state)
 
         # Handling simple on/off
@@ -137,7 +143,7 @@ module.exports = (env) ->
           env.logger.debug("House #{@house} unit #{code} #{rxtx} #{rfpl} #{state}")
           state = if state is "On" then true else false
           # TODO Throw this event
-          if unit = @units[code]
+          if unit = @unitsContainer[code]
             unit._setState(state)
       ).bind(@)
 
@@ -171,9 +177,9 @@ module.exports = (env) ->
 
       @id        = conf.get('id')
       @name      = conf.get('name')
-      @unit      = conf.get('unit')
+      @code      = conf.get('code')
 
-      env.logger.debug("Initiated for house='#{@house}': id='#{@id}', name='#{@name}', unit='#{@unit}'")
+      env.logger.debug("Initiated for house='#{@house}': id='#{@id}', name='#{@name}', code='#{@code}'")
 
       super()
 
@@ -183,7 +189,7 @@ module.exports = (env) ->
     #  * `state`
     # 
     changeStateTo: (state) ->
-      @Mochad.sendCommand("pl #{@house}#{@unit} " + ( if state then "on" else "off" ))
+      @Mochad.sendCommand("pl #{@house}#{@code} " + ( if state then "on" else "off" ))
 
   # ###Wrap up 
   myMochadPlugin = new MochadPlugin

@@ -28,13 +28,13 @@ Under "devices" add (something like):
       "id": "light-kitchen",
       "class": "MochadSwitch",
       "name": "Kitchen Light",
-      "unit": 1
+      "code": 1
     },  
     {
       "id": "light-living",
       "class": "MochadSwitch",
       "name": "Living Light",
-      "unit": 2 
+      "code": 2 
     }
   ]
 }   
