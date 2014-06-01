@@ -38,7 +38,7 @@ module.exports = (env) ->
     createDevice: (deviceConfig) =>
       switch deviceConfig.class
         when "Mochad" 
-          @framework.registerDevice(new Mochad(deviceConfig, @framework))
+          @framework.registerDevice(new Mochad(@framework, deviceConfig))
           return true
         else
           return false
@@ -56,7 +56,7 @@ module.exports = (env) ->
     # #####params:
     #  * `deviceConfig`
     # 
-    constructor: (deviceConfig, @framework) ->
+    constructor: (@framework, deviceConfig) ->
       conf = convict(_.cloneDeep(deviceConfigSchema))
       conf.load(deviceConfig)
       conf.validate()
@@ -66,13 +66,11 @@ module.exports = (env) ->
       @host      = conf.get('host')
       @port      = conf.get('port')
       @house     = conf.get('house')
-
-      @units     = []
+      @units     = conf.get('units')
 
       env.logger.debug("Initiated id='#{@id}', name='#{@name}', host='#{@host}', port='#{@port}', house='#{@house}'")
 
-      # TODO Validate that units is an array in case set
-      for unitConfig in deviceConfig.units
+      for unitConfig in @units
         switch unitConfig.class
           when "MochadSwitch" 
             device = new MochadSwitch(@, @house, unitConfig)

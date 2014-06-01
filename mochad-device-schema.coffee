@@ -2,17 +2,21 @@
 
 module.exports =
   host:
-    doc: "The hostname mochad is available on"
+    doc: "Hostname mochad is available on"
     format: "*"
     default: "localhost"
   port:
-    doc: "The port mochad is available on"
+    doc: "Port mochad is available on"
     format: "port"
     default: 1099
   house:
-    doc: "The house"
+    doc: "X10 house-code"
     format: (val) -> (
-      unless (match = /^[A-P]$/i.exec(val)) then throw new Error('Not a valid house')
+      unless (match = /^[A-P]$/i.exec(val)) then throw new Error('Not a valid X10 house-code')
       return
     )
     default: ""
+  units:
+    doc: "Units that this mochad handles"
+    format: Array
+    default: []
