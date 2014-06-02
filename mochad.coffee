@@ -14,6 +14,9 @@ module.exports = (env) ->
   # Require [net](https://www.npmjs.org/package/net)
   net = env.require 'net'
 
+  # Require [reconnect-net](https://www.npmjs.org/package/reconnect-net)
+  reconnect = require 'reconnect-net'
+
   # ###Plugin class
   class MochadPlugin extends env.plugins.Plugin
 
@@ -82,75 +85,85 @@ module.exports = (env) ->
             @framework.registerDevice(unit)
             @unitsContainer[unit.code] = unit;
       
-      @connection = @initConnection(@host, @port)
+      @connection = null
+      @initConnection(@host, @port)
 
       super()
 
     # ####initConnection()
     # 
-    # TODO Recover self if connection is lost
     initConnection: (host, port)->
-      connection = net.createConnection(port, host)
 
-      connection.on 'connect', (() ->
-        env.logger.debug("Opened connection")
+      # TODO Test 1) Start with non-working connection, make connection     work
+      # TODO Test 2) Start with     working connection, make connection non-working and switch button in frontend
+      reconnector = reconnect(((conn) ->
+
+        # XXX Keep alive does not work [as expected](https://github.com/joyent/node/issues/6194)
+        conn.setKeepAlive(true, 0)
+
+        conn.setNoDelay(true)
+
+        conn.on 'data', ((data) ->
+          lines = data.toString()
+          #env.logger.debug(lines)
+
+          # Handling "st" result
+          #  example: 05/30 20:41:34 Device status
+          #  example: 05/30 20:41:34 House P: 1=1,2=0,3=0,4=0,5=0,6=0,7=0,8=0,9=0,10=0,11=0,12=0,13=0,14=0,15=0,16=0
+          if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+Device status\n\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+House\s+([A-P]): ((?:\d{1,2}=[01],?)+)$/m.exec(lines)
+            house = m[1]
+            if house is not @house then return 
+            for code2status in m[2].split(",")
+                n = code2status.split("=")
+                if unit = @unitsContainer[n[0]] 
+                  state = if parseInt(n[1], 10) is 1 then true else false
+                  env.logger.debug("House #{@house} code #{unit.code} has state #{state}");
+                  unit._setState(state)
+
+          # Handling all-units-on/off
+          #  example: 05/22 00:34:04 Rx PL House: P Func: All units on
+          #  example: 05/22 00:34:04 Rx PL House: P Func: All units off
+          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+All\s+units\s+(on|off)$/m.exec(lines)
+            house = m[3]
+            if house is not @house then return 
+            rxtx  = if m[1] is "Rx" then "received" else "sent"
+            rfpl  = if m[2] is "RF" then "RF" else "powerline"
+            state = m[4]
+            env.logger.debug("House #{@house} #{rxtx} #{rfpl} all #{state}")
+            state = if state is "on" then true else false
+            # TODO Throw this event
+            for key, unit of @unitsContainer
+              unit._setState(state)
+
+          # Handling simple on/off
+          #  example: 05/30 20:59:20 Tx PL HouseUnit: P1
+          #  example: 05/30 20:59:20 Tx PL House: P Func: On
+          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(?:Rx|Tx)\s+(?:RF|PL)\s+HouseUnit: [A-P](\d{1,2})\n\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+(On|Off)$/m.exec(lines)
+            house = m[4]
+            if house is not @house then return 
+            code  = m[1]
+            rxtx  = if m[2] is "Rx" then "received" else "sent"
+            rfpl  = if m[3] is "RF" then "RF" else "powerline"
+            state = m[5]
+            env.logger.debug("House #{@house} unit #{code} #{rxtx} #{rfpl} #{state}")
+            state = if state is "On" then true else false
+            # TODO Throw this event
+            if unit = @unitsContainer[code]
+              unit._setState(state)
+        ).bind(@)
+      ).bind(@)).connect(port, host);
+
+      reconnector.on 'connect', ((connection) ->
+        env.logger.info("(re)Opened connection")
+        @connection = connection
         @sendCommand("rftopl " + @house.toLowerCase()) # TODO RF commands are not received very well???
         @sendCommand("st")
       ).bind(@)
-      
-      connection.on 'data', ((data) ->
-        lines = data.toString()
-        #env.logger.debug(lines)
 
-        # Handling "st" result
-        #  example: 05/30 20:41:34 Device status
-        #  example: 05/30 20:41:34 House P: 1=1,2=0,3=0,4=0,5=0,6=0,7=0,8=0,9=0,10=0,11=0,12=0,13=0,14=0,15=0,16=0
-        if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+Device status\n\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+House\s+([A-P]): ((?:\d{1,2}=[01],?)+)$/m.exec(lines)
-          house = m[1]
-          if house is not @house then return 
-          for code2status in m[2].split(",")
-              n = code2status.split("=")
-              if unit = @unitsContainer[n[0]] 
-                state = if parseInt(n[1], 10) is 1 then true else false
-                env.logger.debug("House #{@house} code #{unit.code} has state #{state}");
-                unit._setState(state)
-
-        # Handling all-units-on/off
-        #  example: 05/22 00:34:04 Rx PL House: P Func: All units on
-        #  example: 05/22 00:34:04 Rx PL House: P Func: All units off
-        else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+All\s+units\s+(on|off)$/m.exec(lines)
-          house = m[3]
-          if house is not @house then return 
-          rxtx  = if m[1] is "Rx" then "received" else "sent"
-          rfpl  = if m[2] is "RF" then "RF" else "powerline"
-          state = m[4]
-          env.logger.debug("House #{@house} #{rxtx} #{rfpl} all #{state}")
-          state = if state is "on" then true else false
-          # TODO Throw this event
-          for key, unit of @unitsContainer
-            unit._setState(state)
-
-        # Handling simple on/off
-        #  example: 05/30 20:59:20 Tx PL HouseUnit: P1
-        #  example: 05/30 20:59:20 Tx PL House: P Func: On
-        else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(?:Rx|Tx)\s+(?:RF|PL)\s+HouseUnit: [A-P](\d{1,2})\n\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+(On|Off)$/m.exec(lines)
-          house = m[4]
-          if house is not @house then return 
-          code  = m[1]
-          rxtx  = if m[2] is "Rx" then "received" else "sent"
-          rfpl  = if m[3] is "RF" then "RF" else "powerline"
-          state = m[5]
-          env.logger.debug("House #{@house} unit #{code} #{rxtx} #{rfpl} #{state}")
-          state = if state is "On" then true else false
-          # TODO Throw this event
-          if unit = @unitsContainer[code]
-            unit._setState(state)
+      reconnector.on 'disconnect', ((err) -> 
+        env.logger.error("Disconnected from #{@host}:#{@port}: " + err)
+        @connection = null;
       ).bind(@)
-
-      connection.on 'end', (data) ->
-        env.logger.debug("Connection closed")
-
-      return connection
 
     # ####sendCommand()
     #  
@@ -159,6 +172,8 @@ module.exports = (env) ->
     #  * `command`
     # 
     sendCommand: (command) ->
+      if not @connection 
+        throw new Error("Received command '#{command}' while offline")
       @connection.write(command + "\r\n")
 
   # #### MochadSwitch class
@@ -171,7 +186,6 @@ module.exports = (env) ->
     # 
     constructor: (@Mochad, @house, unitConfig) ->
       conf = convict(_.cloneDeep(unitConfigSchema))
-      env.logger.debug(unitConfig)
       conf.load(unitConfig)
       conf.validate()
 
