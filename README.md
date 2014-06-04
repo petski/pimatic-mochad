@@ -28,12 +28,12 @@ pimatic-mochad gives you control over your X10-units via RF (433 Mhz), powerline
                                      `----- Powerline ------> X10 devices 
                                                               (switches, dimmers, blinds, ..)
                                      
- [1] Or even OpenWrt running Mochad                                    
+ [1] Or even OpenWrt (, etc) running Mochad                                    
 ```
 
 #### Contemplations
 
-I've choosen [mochad](http://sourceforge.net/apps/mediawiki/mochad) over [node-x10](https://github.com/randallagordon/node-x10/) because mochad allows us to run pimatic on a different host as the X10 controller is attached to. For example, you can run your mochad instance on OpenWRT, while running pimatic on your [Raspberry Pi](http://raspberrypi.org). 
+I've choosen [mochad](http://sourceforge.net/apps/mediawiki/mochad) over [node-x10](https://github.com/randallagordon/node-x10/) because mochad allows us to run pimatic on a different host as the X10 controller is attached to. For example, you can run your mochad instance on OpenWrt, while running pimatic on your [Raspberry Pi](http://raspberrypi.org). 
 
 #### Configuration
 
