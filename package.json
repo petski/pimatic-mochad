@@ -1,6 +1,7 @@
 { 
   "name": "pimatic-mochad",
   "description": "Connects pimatic to mochad",
+  "keywords" : "pimatic",
   "author": "Patrick Kuijvenhoven <patrick.kuijvenhoven@gmail.com>",
   "main": "mochad.coffee",
   "files": [
