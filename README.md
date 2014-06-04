@@ -5,7 +5,7 @@ Connects [pimatic](http://pimatic.org) to [mochad](http://sourceforge.net/apps/m
 
 #### Description
 
-pimatic-mochad gives you control over your X10-units via RF (433 Mhz), powerline (PL) and pimatic-mobile-frontend
+pimatic-mochad gives you control over your X10-units via RF (433 Mhz), powerline (PL) and pimatic(-mobile-frontend)
 
 #### Hardware schematic
 
@@ -15,7 +15,7 @@ pimatic-mochad gives you control over your X10-units via RF (433 Mhz), powerline
                                        \ /           \ /
            Network                    - o -         - o -
  +---------+     +---------+   USB      |             |   
- | RPi     |-----| RPi [1] |════════╗   |             +-- X10 devices (sensors, remotes, etc)
+ | RPi     |-----| RPi [1] |════════╗   |             `-- X10 devices (sensors, remotes, ..)
  | Pimatic |     | Mochad  |        ║   |                         
  +---------+     +---------+       +-----+                        
                                    |     |
@@ -25,7 +25,8 @@ pimatic-mochad gives you control over your X10-units via RF (433 Mhz), powerline
  | RPi Pimatic |═══════════════════|     | X10 controllor (CM15A/CM19A/CM15Pro)
  | and Mochad  |                   +-----+
  +-------------+                     |  
-                                     `----- Powerline ------> X10 devices (switches, dimmers, shutters, etc)
+                                     `----- Powerline ------> X10 devices 
+                                                              (switches, dimmers, blinds, ..)
                                      
  [1] Or even OpenWrt running Mochad                                    
 ```
