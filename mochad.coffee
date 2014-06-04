@@ -48,6 +48,7 @@ module.exports = (env) ->
 
   # Device schema
   deviceConfigSchema = require("./mochad-device-schema")
+
   # Unit schema
   unitConfigSchema   = require("./mochad-unit-schema")
 
@@ -68,10 +69,9 @@ module.exports = (env) ->
       @name      = dconf.get('name')
       @host      = dconf.get('host')
       @port      = dconf.get('port')
-      @house     = dconf.get('house')
       @units     = dconf.get('units')
 
-      env.logger.debug("Initiated id='#{@id}', name='#{@name}', host='#{@host}', port='#{@port}', house='#{@house}'")
+      env.logger.debug("Initiated id='#{@id}', name='#{@name}', host='#{@host}', port='#{@port}'")
 
       @unitsContainer = {}
 
@@ -81,9 +81,10 @@ module.exports = (env) ->
         uconf.validate()
         switch uconf.get('class')
           when "MochadSwitch" 
-            unit = new MochadSwitch(@, @house, unitConfig)
+            unit = new MochadSwitch(@, unitConfig)
             @framework.registerDevice(unit)
-            @unitsContainer[unit.code] = unit;
+            @unitsContainer[unit.housecode] ||= {} 
+            @unitsContainer[unit.housecode][unit.unitcode] = unit;
       
       @connection = null
       @initConnection(@host, @port)
@@ -103,52 +104,59 @@ module.exports = (env) ->
 
         conn.setNoDelay(true)
 
+        # TODO Improve mochads output (json?)
         conn.on 'data', ((data) ->
           lines = data.toString()
+
           #env.logger.debug(lines)
 
           # Handling "st" result
-          #  example: 05/30 20:41:34 Device status
-          #  example: 05/30 20:41:34 House P: 1=1,2=0,3=0,4=0,5=0,6=0,7=0,8=0,9=0,10=0,11=0,12=0,13=0,14=0,15=0,16=0
-          if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+Device status\n\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+House\s+([A-P]): ((?:\d{1,2}=[01],?)+)$/m.exec(lines)
-            house = m[1]
-            if house is not @house then return 
-            for code2status in m[2].split(",")
-                n = code2status.split("=")
-                if unit = @unitsContainer[n[0]] 
-                  state = if parseInt(n[1], 10) is 1 then true else false
-                  env.logger.debug("House #{@house} code #{unit.code} has state #{state}");
-                  unit._setState(state)
+          # 06/04 21:50:55 Device status
+          # 06/04 21:50:55 House A: 1=1
+          # 06/04 21:50:55 House P: 1=1,2=0,3=1,4=0,5=1,6=0,7=0,8=0,9=0,10=0,11=0,12=0,13=0,14=0,15=0,16=0
+          # 06/04 21:50:55 Security sensor status
+
+          if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+Device status\n((?:\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+House\s+[A-P]:\s+(?:\d{1,2}=[01],?)+\n)*)/m.exec(lines)
+            for houseline in m[1].split("\n")
+              if n = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+House\s+([A-P]):\s+((?:\d{1,2}=[01],?)+)$/.exec(houseline)
+                housecode = n[1]
+                for code2status in n[2].split(",")
+                  o = code2status.split("=")
+                  unitcode = o[0]
+                  if @unitsContainer[housecode] and unit = @unitsContainer[housecode][unitcode]
+                    state = if parseInt(o[1], 10) is 1 then true else false
+                    env.logger.debug("House #{housecode} unit #{unitcode} has state #{state}");
+                    unit._setState(state)
 
           # Handling all-units-on/off
           #  example: 05/22 00:34:04 Rx PL House: P Func: All units on
           #  example: 05/22 00:34:04 Rx PL House: P Func: All units off
-          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+All\s+units\s+(on|off)$/m.exec(lines)
-            house = m[3]
-            if house is not @house then return 
-            rxtx  = if m[1] is "Rx" then "received" else "sent"
-            rfpl  = if m[2] is "RF" then "RF" else "powerline"
-            state = m[4]
-            env.logger.debug("House #{@house} #{rxtx} #{rfpl} all #{state}")
-            state = if state is "on" then true else false
+          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+All\s+(units|lights)\s+(on|off)$/.exec(lines)
+            rxtx      = if m[1] is "Rx" then "received" else "sent"
+            rfpl      = if m[2] is "RF" then "RF" else "powerline"
+            housecode = m[3]
+            targets   = m[4]
+            state     = if m[5] is "on" then true else false
+            env.logger.debug("House #{housecode} #{rxtx} #{rfpl} all #{targets} #{state}")
             # TODO Throw this event
-            for key, unit of @unitsContainer
-              unit._setState(state)
+            if @unitsContainer[housecode]
+              for unitcode, unit of @unitsContainer[housecode]
+                env.logger.debug("House #{housecode} unit #{unitcode} has state #{state}");
+                unit._setState(state)
 
           # Handling simple on/off
           #  example: 05/30 20:59:20 Tx PL HouseUnit: P1
           #  example: 05/30 20:59:20 Tx PL House: P Func: On
-          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(?:Rx|Tx)\s+(?:RF|PL)\s+HouseUnit: [A-P](\d{1,2})\n\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+(On|Off)$/m.exec(lines)
-            house = m[4]
-            if house is not @house then return 
-            code  = m[1]
-            rxtx  = if m[2] is "Rx" then "received" else "sent"
-            rfpl  = if m[3] is "RF" then "RF" else "powerline"
-            state = m[5]
-            env.logger.debug("House #{@house} unit #{code} #{rxtx} #{rfpl} #{state}")
-            state = if state is "On" then true else false
+          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(?:Rx|Tx)\s+(?:RF|PL)\s+HouseUnit:\s+[A-P](\d{1,2})\n\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+(On|Off)$/m.exec(lines)
+            unitcode  = m[1]
+            rxtx      = if m[2] is "Rx" then "received" else "sent"
+            rfpl      = if m[3] is "RF" then "RF" else "powerline"
+            housecode = m[4]
+            state     = if m[5] is "On" then true else false
+            env.logger.debug("House #{housecode} unit #{unitcode} #{rxtx} #{rfpl} #{state}")
             # TODO Throw this event
-            if unit = @unitsContainer[code]
+            if @unitsContainer[housecode] and unit = @unitsContainer[housecode][unitcode]
+              env.logger.debug("House #{housecode} unit #{unitcode} has state #{state}");
               unit._setState(state)
         ).bind(@)
       ).bind(@)).connect(port, host);
@@ -156,7 +164,6 @@ module.exports = (env) ->
       reconnector.on 'connect', ((connection) ->
         env.logger.info("(re)Opened connection")
         @connection = connection
-        @sendCommand("rftopl " + @house.toLowerCase()) # TODO RF commands are not received very well???
         @sendCommand("st")
       ).bind(@)
 
@@ -171,6 +178,7 @@ module.exports = (env) ->
     #  * `connection`
     #  * `command`
     # 
+    # TODO returns a promise?
     sendCommand: (command) ->
       if not @connection 
         throw new Error("Received command '#{command}' while offline")
@@ -184,16 +192,17 @@ module.exports = (env) ->
     # #####params:
     #  * `deviceConfig`
     # 
-    constructor: (@Mochad, @house, unitConfig) ->
+    constructor: (@Mochad, unitConfig) ->
       conf = convict(_.cloneDeep(unitConfigSchema))
       conf.load(unitConfig)
       conf.validate()
 
       @id        = conf.get('id')
       @name      = conf.get('name')
-      @code      = conf.get('code')
+      @housecode = conf.get('housecode').toUpperCase()
+      @unitcode  = conf.get('unitcode')
 
-      env.logger.debug("Initiated for house='#{@house}': id='#{@id}', name='#{@name}', code='#{@code}'")
+      env.logger.debug("Initiated unit with: housecode='#{@housecode}', unitcode='#{@unitcode}, id='#{@id}', name='#{@name}'")
 
       super()
 
@@ -203,7 +212,7 @@ module.exports = (env) ->
     #  * `state`
     # 
     changeStateTo: (state) ->
-      @Mochad.sendCommand("pl #{@house}#{@code} " + ( if state then "on" else "off" ))
+      @Mochad.sendCommand("pl #{@housecode}#{@unitcode} " + ( if state then "on" else "off" ))
 
   # ###Wrap up 
   myMochadPlugin = new MochadPlugin

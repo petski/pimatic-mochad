@@ -38,19 +38,20 @@ Under "devices" add (something like):
   "name": "CM15Pro",
   "host": "192.168.1.11",
   "port": 1099,
-  "house": "P",
   "units": [
     {
       "id": "light-kitchen",
       "class": "MochadSwitch",
       "name": "Kitchen Light",
-      "code": 1
+      "housecode": "P",
+      "unitcode": 1
     },  
     {
       "id": "light-living",
       "class": "MochadSwitch",
       "name": "Living Light",
-      "code": 2 
+      "housecode": "P",
+      "unitcode": 2
     }
   ]
 }   
