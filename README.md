@@ -11,7 +11,7 @@ Connects [pimatic](http://pimatic.org) to [mochad](http://sourceforge.net/apps/m
                                        \ /           \ /
            Network                    - o -         - o -
  +---------+     +---------+   USB      |             |   
- | RPi     |-----| RPi     |________    |             +-- X10 devices (sensors, shutters, etc)
+ | RPi     |-----| RPi     |________    |             +-- X10 devices (sensors, remotes, etc)
  | Pimatic |     | Mochad  |        \   |                         
  +---------+     +---------+       +-----+                        
    |               |               |     |
@@ -19,7 +19,7 @@ Connects [pimatic](http://pimatic.org) to [mochad](http://sourceforge.net/apps/m
    `-------------Power-------------|     | X10 controllor (CM15A/CM19A/CM15Pro)
                    |               +-----+
                    |                   
-                   +-- X10 devices (switches, dimmers, etc)
+                   +-- X10 devices (switches, dimmers, shutters, etc)
 ```
 
 First, please note that you can switch units via RF (433 Mhz), powerline (PL) and via the mobile-frontend as well
