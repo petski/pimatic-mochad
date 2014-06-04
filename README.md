@@ -6,20 +6,22 @@ Connects [pimatic](http://pimatic.org) to [mochad](http://sourceforge.net/apps/m
 #### Example usage
 
 ```
- +-------------------------+          RF Antenna (433 Mhz)
- |   Could be same RPi     |          
+                                       RF Antenna (433 Mhz)
+          
                                        \ /           \ /
            Network                    - o -         - o -
  +---------+     +---------+   USB      |             |   
  | RPi     |-----| RPi     |════════╗   |             +-- X10 devices (sensors, remotes, etc)
  | Pimatic |     | Mochad  |        ║   |                         
  +---------+     +---------+       +-----+                        
-   |               |               |     |
-   |               |               | X10 |
-   `-------------Power-------------|     | X10 controllor (CM15A/CM19A/CM15Pro)
-                   |               +-----+
-                   |                   
-                   +-- X10 devices (switches, dimmers, shutters, etc)
+                                   |     |
+          _OR_                     | X10 |
+                                   |     |
+ +-------------+     USB           |     |
+ | RPi Pimatic |═══════════════════|     | X10 controllor (CM15A/CM19A/CM15Pro)
+ | and Mochad  |                   +-----+
+ +-------------+                     |  
+                                     `----- Powerline ------> X10 devices (switches, dimmers, shutters, etc)
 ```
 
 First, please note that you can switch units via RF (433 Mhz), powerline (PL) and via the mobile-frontend as well
