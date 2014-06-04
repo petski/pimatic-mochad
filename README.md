@@ -11,8 +11,8 @@ Connects [pimatic](http://pimatic.org) to [mochad](http://sourceforge.net/apps/m
                                        \ /           \ /
            Network                    - o -         - o -
  +---------+     +---------+   USB      |             |   
- | RPi     |-----| RPi     |________    |             +-- X10 devices (sensors, remotes, etc)
- | Pimatic |     | Mochad  |        \   |                         
+ | RPi     |-----| RPi     |════════╗   |             +-- X10 devices (sensors, remotes, etc)
+ | Pimatic |     | Mochad  |        ║   |                         
  +---------+     +---------+       +-----+                        
    |               |               |     |
    |               |               | X10 |
