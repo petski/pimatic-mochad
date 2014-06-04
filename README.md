@@ -30,14 +30,6 @@ pimatic-mochad gives you control over your X10-units via RF (433 Mhz), powerline
  [1] Or even OpenWrt running Mochad                                    
 ```
 
-#### Some cool rules
-
-```if it is 18:00 then turn Kitchen Light on```
-
-~~```if it is after 23:00 and CM15Pro receives event:"RF all lights off" then push title:"Good nigth!" message:"Sleep well, sir!"```~~
-
-~~```if CM15Pro receives event:"RF A9 on" then turn Kitchen Light off and turn Living Light on```~~
-
 #### Contemplations
 
 I've choosen [mochad](http://sourceforge.net/apps/mediawiki/mochad) over [node-x10](https://github.com/randallagordon/node-x10/) because mochad allows us to run pimatic on a different host as the X10 controller is attached to. For example, you can run your mochad instance on OpenWRT, while running pimatic on your [Raspberry Pi](http://raspberrypi.org). 
@@ -79,3 +71,11 @@ Under "devices" add (something like):
   ]
 }   
 ```
+
+#### Some cool rules
+
+```if it is 18:00 then turn Kitchen Light on```
+
+~~```if it is after 23:00 and CM15Pro receives event:"RF all lights off" then push title:"Good nigth!" message:"Sleep well, sir!"```~~
+
+~~```if CM15Pro receives event:"RF A9 on" then turn Kitchen Light off and turn Living Light on```~~
