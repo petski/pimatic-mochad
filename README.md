@@ -3,7 +3,11 @@ pimatic-mochad
 
 Connects [pimatic](http://pimatic.org) to [mochad](http://sourceforge.net/apps/mediawiki/mochad)
 
-#### Example usage
+#### Description
+
+pimatic-mochad gives you control over your X10-units via RF (433 Mhz), powerline (PL) and pimatic-mobile-frontend
+
+#### Hardware schematic
 
 ```
                                        RF Antenna (433 Mhz)
@@ -11,7 +15,7 @@ Connects [pimatic](http://pimatic.org) to [mochad](http://sourceforge.net/apps/m
                                        \ /           \ /
            Network                    - o -         - o -
  +---------+     +---------+   USB      |             |   
- | RPi     |-----| RPi     |════════╗   |             +-- X10 devices (sensors, remotes, etc)
+ | RPi     |-----| RPi [1] |════════╗   |             +-- X10 devices (sensors, remotes, etc)
  | Pimatic |     | Mochad  |        ║   |                         
  +---------+     +---------+       +-----+                        
                                    |     |
@@ -22,11 +26,11 @@ Connects [pimatic](http://pimatic.org) to [mochad](http://sourceforge.net/apps/m
  | and Mochad  |                   +-----+
  +-------------+                     |  
                                      `----- Powerline ------> X10 devices (switches, dimmers, shutters, etc)
+                                     
+ [1] Or even OpenWrt running Mochad                                    
 ```
 
-First, please note that you can switch units via RF (433 Mhz), powerline (PL) and via the mobile-frontend as well
-
-Some cool rules:
+#### Some cool rules
 
 ```if it is 18:00 then turn Kitchen Light on```
 
