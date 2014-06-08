@@ -124,10 +124,10 @@ module.exports = (env) ->
           if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+Device status\n((?:\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+House\s+[A-P]:\s+(?:\d{1,2}=[01],?)+\n)*)/m.exec(lines)
             for houseline in m[1].split("\n")
               if n = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+House\s+([A-P]):\s+((?:\d{1,2}=[01],?)+)$/.exec(houseline)
-                housecode = n[1]
+                housecode = n[1].toLowerCase()
                 for code2status in n[2].split(",")
                   o = code2status.split("=")
-                  unitcode = o[0]
+                  unitcode = parseInt(o[0], 10)
                   if @unitsContainer[housecode] and unit = @unitsContainer[housecode][unitcode]
                     state = if parseInt(o[1], 10) is 1 then true else false
                     env.logger.debug("House #{housecode} unit #{unitcode} has state #{state}");
@@ -137,32 +137,37 @@ module.exports = (env) ->
           #  example: 05/22 00:34:04 Rx PL House: P Func: All units on
           #  example: 05/22 00:34:04 Rx PL House: P Func: All units off
           else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+All\s+(units|lights)\s+(on|off)$/.exec(lines)
-            rxtx      = if m[1] is "Rx" then "received" else "sent"
-            rfpl      = if m[2] is "RF" then "RF" else "powerline"
-            housecode = m[3]
-            targets   = m[4]
-            state     = if m[5] is "on" then true else false
             env.logger.debug("House #{housecode} #{rxtx} #{rfpl} all #{targets} #{state}")
-            # TODO Throw this event
-            if @unitsContainer[housecode]
-              for unitcode, unit of @unitsContainer[housecode]
-                env.logger.debug("House #{housecode} unit #{unitcode} has state #{state}");
-                unit._setState(state)
+            event = {
+              protocol:  m[2].toLowerCase(),
+              direction: m[1].toLowerCase(),
+              housecode: m[3].toLowerCase(),
+              unitcode:  "*" + m[4],
+              state:     (if m[5] is "On" then true else false) 
+            }
+            env.logger.debug("Event: " + JSON.stringify(event))
+            @emit 'event', event
+            if event.protocol is "pl" and event.direction is "tx" and @unitsContainer[event.housecode]
+              for unitcode, unit of @unitsContainer[event.housecode]
+                env.logger.debug("House #{event.housecode} unit #{unitcode} has state #{event.state}");
+                unit._setState(event.state)
 
           # Handling simple on/off
           #  example: 05/30 20:59:20 Tx PL HouseUnit: P1
           #  example: 05/30 20:59:20 Tx PL House: P Func: On
+          # TODO Crap, damn sometimes buffer only contains one line, so it won't match ....
           else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(?:Rx|Tx)\s+(?:RF|PL)\s+HouseUnit:\s+[A-P](\d{1,2})\n\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+(On|Off)$/m.exec(lines)
-            unitcode  = m[1]
-            rxtx      = if m[2] is "Rx" then "received" else "sent"
-            rfpl      = if m[3] is "RF" then "RF" else "powerline"
-            housecode = m[4]
-            state     = if m[5] is "On" then true else false
-            env.logger.debug("House #{housecode} unit #{unitcode} #{rxtx} #{rfpl} #{state}")
-            # TODO Throw this event
-            if @unitsContainer[housecode] and unit = @unitsContainer[housecode][unitcode]
-              env.logger.debug("House #{housecode} unit #{unitcode} has state #{state}");
-              unit._setState(state)
+            event = {
+              protocol:  m[3].toLowerCase(),
+              direction: m[2].toLowerCase(),
+              housecode: m[4].toLowerCase(),
+              unitcode:  parseInt(m[1], 10),
+              state:     (if m[5] is "On" then true else false) 
+            }
+            env.logger.debug("Event: " + JSON.stringify(event))
+            @emit 'event', event
+            if event.protocol is "pl" and event.direction is "tx" and @unitsContainer[event.housecode] and unit = @unitsContainer[event.housecode][event.unitcode]
+              unit._setState(event.state)
         ).bind(@)
       ).bind(@)).connect(port, host);
 
@@ -206,8 +211,8 @@ module.exports = (env) ->
 
       @id        = conf.get('id')
       @name      = conf.get('name')
-      @housecode = conf.get('housecode').toUpperCase()
-      @unitcode  = conf.get('unitcode')
+      @housecode = conf.get('housecode').toLowerCase()
+      @unitcode  = parseInt(conf.get('unitcode'), 10)
 
       env.logger.debug("Initiated unit with: housecode='#{@housecode}', unitcode='#{@unitcode}, id='#{@id}', name='#{@name}'")
 
