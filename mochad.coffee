@@ -45,6 +45,7 @@ module.exports = (env) ->
       switch deviceConfig.class
         when "Mochad" 
           Q(@framework.registerDevice(new Mochad(@framework, deviceConfig)))
+            # TODO .then(@framework.ruleManager.addPredicateProvider(new MochadPredicateProvider(@framework)))
             .then(@framework.ruleManager.addActionProvider(new MochadActionProvider(@framework)))
           return true
         else
