@@ -112,7 +112,7 @@ module.exports = (env) ->
         conn.on 'data', ((data) ->
           lines = data.toString()
 
-          env.logger.debug(lines)
+          #env.logger.debug(lines)
 
           # Handling "st" result
           # 06/04 21:50:55 Device status
@@ -257,9 +257,9 @@ module.exports = (env) ->
       @framework.variableManager.evaluateStringExpression(@commandTokens).then( (command) =>
         if simulate
           # just return a promise fulfilled with a description about what we would do.
-          return __("would send \"%s\"", command)
+          __("would send \"%s\"", command)
         else
-          return @device.sendCommand(command)
+          @device.sendCommand(command)
       )
 
   # ###Wrap up 
