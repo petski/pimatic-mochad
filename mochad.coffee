@@ -86,8 +86,10 @@ module.exports = (env) ->
         switch uconf.get('class')
           when "MochadSwitch" 
             unit = new MochadSwitch(@, unitConfig)
-            @framework.registerDevice(unit)
             @unitsContainer[unit.housecode] ||= {} 
+            if @unitsContainer[unit.housecode][unit.unitcode]
+              throw new Error "Unit #{unit.housecode}#{unit.unitcode} not unique in configuration"
+            @framework.registerDevice(unit)
             @unitsContainer[unit.housecode][unit.unitcode] = unit;
       
       @connection = null
