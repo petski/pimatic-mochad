@@ -1,7 +1,7 @@
 pimatic-mochad
 ==============
 
-Connects [pimatic](http://pimatic.org) to [mochad](http://sourceforge.net/apps/mediawiki/mochad)
+Connects [pimatic](http://pimatic.org) to [mochad](http://sourceforge.net/apps/mediawiki/mochad) (an X10-controller controller)
 
 #### Description
 
@@ -76,6 +76,8 @@ Under "devices" add (something like):
 #### Some cool rules
 
 ```if it is 18:00 then turn Kitchen Light on```
+
+```if button "All lights off" is pressed then tell CM15Pro to send "pl a all_lights_off"```
 
 ~~```if it is after 23:00 and CM15Pro receives event:"RF all lights off" then push title:"Good nigth!" message:"Sleep well, sir!"```~~
 

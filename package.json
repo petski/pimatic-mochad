@@ -1,7 +1,7 @@
 { 
   "name": "pimatic-mochad",
-  "description": "Connects pimatic to mochad",
-  "keywords" : "pimatic",
+  "description": "Connects pimatic to mochad (an X10-controller controller)",
+  "keywords" : [ "pimatic", "x10" ],
   "author": "Patrick Kuijvenhoven <patrick.kuijvenhoven@gmail.com>",
   "main": "mochad.coffee",
   "files": [

@@ -14,6 +14,9 @@ module.exports = (env) ->
   # Require [net](https://www.npmjs.org/package/net)
   net = env.require 'net'
 
+  # Require (internal lib) [matcher](https://github.com/pimatic/pimatic/blob/master/lib/matcher.coffee)
+  M = env.matcher
+
   # Require [reconnect-net](https://www.npmjs.org/package/reconnect-net)
   reconnect = require 'reconnect-net'
 
@@ -32,7 +35,7 @@ module.exports = (env) ->
       conf = convict require("./mochad-config-schema")
       conf.load(config)
       conf.validate()
-
+    
     # ####createDevice()
     #  
     # #####params:
@@ -41,7 +44,8 @@ module.exports = (env) ->
     createDevice: (deviceConfig) =>
       switch deviceConfig.class
         when "Mochad" 
-          @framework.registerDevice(new Mochad(@framework, deviceConfig))
+          Q(@framework.registerDevice(new Mochad(@framework, deviceConfig)))
+            .then(@framework.ruleManager.addActionProvider(new MochadActionProvider(@framework)))
           return true
         else
           return false
@@ -108,7 +112,7 @@ module.exports = (env) ->
         conn.on 'data', ((data) ->
           lines = data.toString()
 
-          #env.logger.debug(lines)
+          env.logger.debug(lines)
 
           # Handling "st" result
           # 06/04 21:50:55 Device status
@@ -177,12 +181,14 @@ module.exports = (env) ->
     # #####params:
     #  * `connection`
     #  * `command`
-    # 
-    # TODO returns a promise?
     sendCommand: (command) ->
-      if not @connection 
-        throw new Error("Received command '#{command}' while offline")
-      @connection.write(command + "\r\n")
+      Q
+      .try((() ->
+          if @connection is null then throw new Error("No connection!")
+          env.logger.debug("Sending '#{command}'")
+          @connection.write(command + "\r\n")
+      ).bind(@))
+      .catch((error) -> env.logger.error("Couldn't send command '#{command}': " + error))
 
   # #### MochadSwitch class
   class MochadSwitch extends env.devices.SwitchActuator
@@ -213,6 +219,48 @@ module.exports = (env) ->
     # 
     changeStateTo: (state) ->
       @Mochad.sendCommand("pl #{@housecode}#{@unitcode} " + ( if state then "on" else "off" ))
+
+  class MochadActionProvider extends env.actions.ActionProvider
+
+    constructor: (@framework) ->
+    parseAction: (input, context) =>
+      commandTokens = null
+      fullMatch = no
+
+      setCommand = (m, tokens) => commandTokens = tokens
+      onEnd = => fullMatch = yes
+
+      devices = [ @framework.getDeviceById 'CM15Pro' ] # TODO implement getDevicesByClass
+      
+      m = M(input, context)
+         .match("tell CM15Pro to send ")
+      #  .match("tell ")
+      #  .matchDevice(devices) # TODO Doesn't work as I want to
+      #  .match(' to send ')
+         .matchStringWithVars(setCommand)
+      
+      device = @framework.getDeviceById 'CM15Pro' # TODO Find correct device
+      if m.hadMatch()
+        match = m.getFullMatch()
+        return {
+          token: match
+          nextInput: input.substring(match.length)
+          actionHandler: new MochadActionHandler(@framework, device, commandTokens)
+        }
+      else
+        return null
+
+  class MochadActionHandler extends env.actions.ActionHandler
+
+    constructor: (@framework, @device, @commandTokens) ->
+    executeAction: (simulate) =>
+      @framework.variableManager.evaluateStringExpression(@commandTokens).then( (command) =>
+        if simulate
+          # just return a promise fulfilled with a description about what we would do.
+          return __("would send \"%s\"", command)
+        else
+          return @device.sendCommand(command)
+      )
 
   # ###Wrap up 
   myMochadPlugin = new MochadPlugin
