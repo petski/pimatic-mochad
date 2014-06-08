@@ -108,7 +108,6 @@ module.exports = (env) ->
 
         conn.setNoDelay(true)
 
-        # TODO Improve mochads output (json?)
         conn.on 'data', ((data) ->
           lines = data.toString()
 
