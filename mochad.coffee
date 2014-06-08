@@ -45,7 +45,7 @@ module.exports = (env) ->
       switch deviceConfig.class
         when "Mochad" 
           Q(@framework.registerDevice(new Mochad(@framework, deviceConfig)))
-            # TODO .then(@framework.ruleManager.addPredicateProvider(new MochadPredicateProvider(@framework)))
+            .then(@framework.ruleManager.addPredicateProvider(new MochadPredicateProvider(@framework)))
             .then(@framework.ruleManager.addActionProvider(new MochadActionProvider(@framework)))
           return true
         else
@@ -238,11 +238,9 @@ module.exports = (env) ->
 
       if mochadDevices.length is 0 then return
 
-      device = null
       match = null
+      device = null
       commandTokens = null
-
-      setCommand = (m, tokens) => commandTokens = tokens
 
       m = M(input, context)
         .match('tell ')
@@ -278,6 +276,47 @@ module.exports = (env) ->
         else
           @device.sendCommand(command)
       )
+
+  class MochadPredicateProvider extends env.predicates.PredicateProvider
+  
+    constructor: (@framework) ->
+  
+    parsePredicate: (input, context) ->
+
+      mochadDevices = _(@framework.devices).values().filter( 
+        (device) => device instanceof Mochad
+      ).value()
+
+      if mochadDevices.length is 0 then return
+
+      match = null
+      device = null
+      direction = null
+      commandTokens = null
+
+      m = M(input, context)
+        .matchDevice(mochadDevices, (m, d) =>
+          m.match([' receives ', ' sends '], (m, s) ->
+            m.matchStringWithVars((m, ct) => 
+              if device? and device.id isnt d.id
+                context?.addError(""""#{input.trim()}" is ambiguous.""")
+                return
+              device = d
+              direction = if s is " receives" then "rx" else "tx"
+              commandTokens = ct
+              match = m.getFullMatch()
+            )
+          )
+        )
+      
+      if match
+        return {
+          token: match
+          nextInput: input.substring(match.length)
+          predicateHandler: new MochadPredicateHandler(@framework, device, direction, commandTokens)
+        }
+      else
+        return null
 
   # ###Wrap up 
   myMochadPlugin = new MochadPlugin

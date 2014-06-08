@@ -79,6 +79,6 @@ Under "devices" add (something like):
 
 ```if button "All lights off" is pressed then tell CM15Pro to send "pl a all_lights_off"```
 
-~~```if it is after 23:00 and CM15Pro receives event:"RF all lights off" then push title:"Good nigth!" message:"Sleep well, sir!"```~~
+```if it is after 23:00 and CM15Pro receives event "rf a all_lights_off" then push title:"Good nigth!" message:"Sleep well, sir!"```
 
-~~```if CM15Pro receives event:"RF A9 on" then turn Kitchen Light off and turn Living Light on```~~
+```if CM15Pro receives event "rf a9 on" then turn Kitchen Light off and turn Living Light on```
