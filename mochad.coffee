@@ -224,24 +224,34 @@ module.exports = (env) ->
 
     constructor: (@framework) ->
     parseAction: (input, context) =>
+
+      mochadDevices = _(@framework.devices).values().filter( 
+        (device) => device instanceof Mochad
+      ).value()
+
+      if mochadDevices.length is 0 then return
+
+      device = null
+      match = null
       commandTokens = null
-      fullMatch = no
 
       setCommand = (m, tokens) => commandTokens = tokens
-      onEnd = => fullMatch = yes
 
-      devices = [ @framework.getDeviceById 'CM15Pro' ] # TODO implement getDevicesByClass
-      
       m = M(input, context)
-         .match("tell CM15Pro to send ")
-      #  .match("tell ")
-      #  .matchDevice(devices) # TODO Doesn't work as I want to
-      #  .match(' to send ')
-         .matchStringWithVars(setCommand)
+        .match('tell ')
+        .matchDevice(mochadDevices, (m, d) =>
+          m.match(' to send ')
+            .matchStringWithVars((m, ct) => 
+              if device? and device.id isnt d.id
+                context?.addError(""""#{input.trim()}" is ambiguous.""")
+                return
+              device = d
+              commandTokens = ct
+              match = m.getFullMatch()
+            )
+        )
       
-      device = @framework.getDeviceById 'CM15Pro' # TODO Find correct device
-      if m.hadMatch()
-        match = m.getFullMatch()
+      if match
         return {
           token: match
           nextInput: input.substring(match.length)
