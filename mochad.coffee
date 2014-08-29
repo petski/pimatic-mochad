@@ -318,6 +318,10 @@ module.exports = (env) ->
       else
         return null
 
+  class MochadPredicateHandler extends env.predicates.PredicateHandler
+
+    constructor: (@framework, device, direction, commandTokens) ->
+
   # ###Wrap up 
   myMochadPlugin = new MochadPlugin
   return myMochadPlugin
