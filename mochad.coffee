@@ -60,7 +60,7 @@ module.exports = (env) ->
               throw new Error "Unit #{unit.housecode}#{unit.unitcode} not unique in configuration"
             @framework.deviceManager.registerDevice(unit)
             @unitsContainer[unit.housecode][unit.unitcode] = unit;
-      
+
       @connection = null
       @initConnection(@host, @port)
 
@@ -82,7 +82,9 @@ module.exports = (env) ->
         conn.on 'data', ((data) ->
           lines = data.toString()
 
-          #env.logger.debug(lines)
+          # env.logger.debug(lines)
+
+          lastSeen = {} # TODO should be in 'this' to make it propertly work?
 
           # Handling "st" result
           # 06/04 21:50:55 Device status
@@ -105,8 +107,9 @@ module.exports = (env) ->
           # Handling all-units-on/off
           #  example: 05/22 00:34:04 Rx PL House: P Func: All units on
           #  example: 05/22 00:34:04 Rx PL House: P Func: All units off
-          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+All\s+(units|lights)\s+(on|off)$/.exec(lines)
-            env.logger.debug("House #{housecode} #{rxtx} #{rfpl} all #{targets} #{state}")
+          # example2: 00:04:29.391 [pimatic-mochad] 09/02 00:04:29 Rx PL House: P Func: All units off
+          # example2: 00:04:29.391 [pimatic-mochad]>
+          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+All\s+(units|lights)\s+(on|off)$/m.exec(lines)
             event = {
               protocol:  m[2].toLowerCase(),
               direction: m[1].toLowerCase(),
@@ -116,6 +119,7 @@ module.exports = (env) ->
             }
             env.logger.debug("Event: " + JSON.stringify(event))
             @emit 'event', event
+            if @unitsContainer[event.housecode]
             if event.protocol is "pl" and event.direction is "tx" and @unitsContainer[event.housecode]
               for unitcode, unit of @unitsContainer[event.housecode]
                 env.logger.debug("House #{event.housecode} unit #{unitcode} has state #{event.state}");
@@ -124,19 +128,28 @@ module.exports = (env) ->
           # Handling simple on/off
           #  example: 05/30 20:59:20 Tx PL HouseUnit: P1
           #  example: 05/30 20:59:20 Tx PL House: P Func: On
-          # TODO Crap, damn sometimes buffer only contains one line, so it won't match ....
-          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(?:Rx|Tx)\s+(?:RF|PL)\s+HouseUnit:\s+[A-P](\d{1,2})\n\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+(On|Off)$/m.exec(lines)
+          #  example2: 23:42:03.196 [pimatic-mochad] 09/01 23:42:03 Tx PL HouseUnit: P1
+          #  example2: 23:42:03.196 [pimatic-mochad]>
+          #  example2: 23:42:03.198 [pimatic-mochad] 09/01 23:42:03 Tx PL House: P Func: On
+          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(?:Rx|Tx)\s+(?:RF|PL)\s+HouseUnit:\s+([A-P])(\d{1,2})/m.exec(lines)
+            lastSeen.housecode = m[1].toLowerCase()
+            lastSeen.unitcode  = parseInt(m[2], 10)
+            env.logger.debug("Event: " + JSON.stringify(lastSeen))
+
+          if lastSeen.housecode and lastSeen.unitcode and m = /\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+(On|Off)$/m.exec(lines)
             event = {
-              protocol:  m[3].toLowerCase(),
-              direction: m[2].toLowerCase(),
-              housecode: m[4].toLowerCase(),
-              unitcode:  parseInt(m[1], 10),
-              state:     (if m[5] is "On" then true else false) 
+              protocol:  m[2].toLowerCase(),
+              direction: m[1].toLowerCase(),
+              housecode: m[3].toLowerCase(),
+              unitcode:  null, # filled later
+              state:     (if m[4] is "On" then true else false) 
             }
-            env.logger.debug("Event: " + JSON.stringify(event))
-            @emit 'event', event
-            if event.protocol is "pl" and event.direction is "tx" and @unitsContainer[event.housecode] and unit = @unitsContainer[event.housecode][event.unitcode]
-              unit._setState(event.state)
+            if event.housecode == lastSeen.housecode
+              event.unitcode = lastSeen.unitcode
+              env.logger.debug("Event: " + JSON.stringify(event))
+              @emit 'event', event
+              if event.protocol is "pl" and event.direction is "tx" and @unitsContainer[event.housecode] and unit = @unitsContainer[event.housecode][event.unitcode]
+                unit._setState(event.state)
         ).bind(@)
       ).bind(@)).connect(port, host);
 
