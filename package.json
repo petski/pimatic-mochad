@@ -1,4 +1,5 @@
 { 
+  "configSchema": "mochad-config-schema.coffee",
   "name": "pimatic-mochad",
   "description": "Connects pimatic to mochad (an X10-controller controller)",
   "keywords" : [ "pimatic", "x10" ],
@@ -8,10 +9,9 @@
     "README.md",
     "mochad.coffee",
     "mochad-config-schema.coffee",
-    "mochad-device-schema.coffee",
-    "mochad-unit-schema.coffee"
+    "mochad-device-schema.coffee"
   ],
-  "version": "0.0.5",
+  "version": "0.8.0",
   "homepage": "https://github.com/petski/pimatic-mochad",
   "repository": {
     "type": "git",
@@ -22,10 +22,10 @@
     "reconnect-net": "~0.0.0"
   },
   "peerDependencies": {
-    "pimatic": "0.7.*"
+    "pimatic": "0.8.*"
   },
   "engines": {
-    "node": ">0.8.x",
+    "node": ">0.10.x",
     "npm": ">1.1.x"
   }
 }

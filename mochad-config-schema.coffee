@@ -1,2 +1,5 @@
-# #mochad configuration options
-# Defines a `node-convict` config-schema and exports it.
+module.exports = {
+  title: "mochad config"
+  type: "object"
+  properties: {}
+}

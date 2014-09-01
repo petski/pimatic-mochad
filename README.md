@@ -82,3 +82,4 @@ Under "devices" add (something like):
 ```if it is after 23:00 and CM15Pro receives event "rf a all_lights_off" then push title:"Good nigth!" message:"Sleep well, sir!"```
 
 ```if CM15Pro receives event "rf a9 on" then turn Kitchen Light off and turn Living Light on```
+

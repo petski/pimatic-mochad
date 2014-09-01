@@ -2,17 +2,8 @@
 
 module.exports = (env) ->
 
-  # Require [convict](https://www.npmjs.org/package/convict) for config validation.
-  convict = env.require "convict"
-
-  # Require the [Q](https://www.npmjs.org/package/q) promise library
-  Q = env.require 'q'
-
-  # Require [lodash](https://www.npmjs.org/package/lodash)
-  _ = env.require 'lodash'
-  
-  # Require [net](https://www.npmjs.org/package/net)
-  net = env.require 'net'
+  # Require the bluebird promise library
+  Promise = env.require 'bluebird'
 
   # Require (internal lib) [matcher](https://github.com/pimatic/pimatic/blob/master/lib/matcher.coffee)
   M = env.matcher
@@ -32,30 +23,13 @@ module.exports = (env) ->
     #     section of the config.json file 
     # 
     init: (app, @framework, config) =>
-      conf = convict require("./mochad-config-schema")
-      conf.load(config)
-      conf.validate()
-    
-    # ####createDevice()
-    #  
-    # #####params:
-    #  * `deviceConfig` 
-    # 
-    createDevice: (deviceConfig) =>
-      switch deviceConfig.class
-        when "Mochad" 
-          Q(@framework.registerDevice(new Mochad(@framework, deviceConfig)))
-            .then(@framework.ruleManager.addPredicateProvider(new MochadPredicateProvider(@framework)))
-            .then(@framework.ruleManager.addActionProvider(new MochadActionProvider(@framework)))
-          return true
-        else
-          return false
 
-  # Device schema
-  deviceConfigSchema = require("./mochad-device-schema")
-
-  # Unit schema
-  unitConfigSchema   = require("./mochad-unit-schema")
+      deviceConfigSchema = require("./mochad-device-schema")
+       
+      @framework.deviceManager.registerDeviceClass("Mochad", {
+        configDef: deviceConfigSchema.Mochad,
+        createCallback: (config) => new Mochad(@framework, config)
+      })
 
   # #### Mochad class
   class Mochad extends env.devices.Sensor
@@ -65,32 +39,26 @@ module.exports = (env) ->
     # #####params:
     #  * `deviceConfig`
     # 
-    constructor: (@framework, deviceConfig) ->
-      dconf = convict(_.cloneDeep(deviceConfigSchema))
-      dconf.load(deviceConfig)
-      dconf.validate()
+    constructor: (@framework, @config) ->
 
-      @id        = dconf.get('id')
-      @name      = dconf.get('name')
-      @host      = dconf.get('host')
-      @port      = dconf.get('port')
-      @units     = dconf.get('units')
+      @id        = @config.id
+      @name      = @config.name
+      @host      = @config.host
+      @port      = @config.port
+      @units     = @config.units
 
-      env.logger.debug("Initiated id='#{@id}', name='#{@name}', host='#{@host}', port='#{@port}'")
+      env.logger.debug("Initiating id='#{@id}', name='#{@name}', host='#{@host}', port='#{@port}'")
 
       @unitsContainer = {}
 
-      for unitConfig in @units
-        uconf = convict(_.cloneDeep(unitConfigSchema))
-        uconf.load(unitConfig)
-        uconf.validate()
-        switch uconf.get('class')
+      for uconf in @units
+        switch uconf.class
           when "MochadSwitch" 
-            unit = new MochadSwitch(@, unitConfig)
+            unit = new MochadSwitch(@, uconf)
             @unitsContainer[unit.housecode] ||= {} 
             if @unitsContainer[unit.housecode][unit.unitcode]
               throw new Error "Unit #{unit.housecode}#{unit.unitcode} not unique in configuration"
-            @framework.registerDevice(unit)
+            @framework.deviceManager.registerDevice(unit)
             @unitsContainer[unit.housecode][unit.unitcode] = unit;
       
       @connection = null
@@ -189,7 +157,7 @@ module.exports = (env) ->
     #  * `connection`
     #  * `command`
     sendCommand: (command) ->
-      Q
+      Promise
       .try((() ->
           if @connection is null then throw new Error("No connection!")
           env.logger.debug("Sending '#{command}'")
@@ -205,15 +173,11 @@ module.exports = (env) ->
     # #####params:
     #  * `deviceConfig`
     # 
-    constructor: (@Mochad, unitConfig) ->
-      conf = convict(_.cloneDeep(unitConfigSchema))
-      conf.load(unitConfig)
-      conf.validate()
-
-      @id        = conf.get('id')
-      @name      = conf.get('name')
-      @housecode = conf.get('housecode').toLowerCase()
-      @unitcode  = parseInt(conf.get('unitcode'), 10)
+    constructor: (@Mochad, uconf) ->
+      @id        = uconf.id
+      @name      = uconf.name
+      @housecode = uconf.housecode.toLowerCase()
+      @unitcode  = parseInt(uconf.unitcode, 10)
 
       env.logger.debug("Initiated unit with: housecode='#{@housecode}', unitcode='#{@unitcode}, id='#{@id}', name='#{@name}'")
 
