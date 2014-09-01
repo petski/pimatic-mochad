@@ -1,3 +1,5 @@
+[![NPM version](https://badge.fury.io/js/pimatic-mochad.svg)](http://badge.fury.io/js/pimatic-mochad)
+
 pimatic-mochad
 ==============
 
