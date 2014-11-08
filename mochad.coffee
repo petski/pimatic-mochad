@@ -119,7 +119,6 @@ module.exports = (env) ->
             }
             env.logger.debug("Event: " + JSON.stringify(event))
             @emit 'event', event
-            if @unitsContainer[event.housecode]
             if event.protocol is "pl" and event.direction is "tx" and @unitsContainer[event.housecode]
               for unitcode, unit of @unitsContainer[event.housecode]
                 env.logger.debug("House #{event.housecode} unit #{unitcode} has state #{event.state}");
