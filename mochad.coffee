@@ -203,6 +203,7 @@ module.exports = (env) ->
     changeStateTo: (state) ->
       @Mochad.sendCommand("pl #{@housecode}#{@unitcode} " + ( if state then "on" else "off" ))
 
+  # TODO Needs to be implemented
   class MochadActionProvider extends env.actions.ActionProvider
 
     constructor: (@framework) ->
@@ -253,6 +254,7 @@ module.exports = (env) ->
           @device.sendCommand(command)
       )
 
+  # TODO Needs to be implemented
   class MochadPredicateProvider extends env.predicates.PredicateProvider
   
     constructor: (@framework) ->
