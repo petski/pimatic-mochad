@@ -119,10 +119,27 @@ module.exports = (env) ->
             }
             env.logger.debug("Event: " + JSON.stringify(event))
             @emit 'event', event
-            if event.protocol in ["pl","rf"] and event.direction is "tx" and @unitsContainer[event.housecode]
+            if event.direction is "tx" and @unitsContainer[event.housecode]
               for unitcode, unit of @unitsContainer[event.housecode]
                 env.logger.debug("House #{event.housecode} unit #{unitcode} has state #{event.state}");
                 unit._setState(event.state)
+
+          # Handling simple on/off (CM19a-style?)
+          # 11/30 17:57:12 Tx RF HouseUnit: A10 Func: On
+          # 11/30 17:57:24 Tx RF HouseUnit: A10 Func: Off
+          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+HouseUnit:\s+([A-P])(\d{1,2})\s+Func:\s+(On|Off)/m.exec(lines) 
+            event = {
+              protocol:  m[2].toLowerCase()
+              direction: m[1].toLowerCase()
+              housecode: m[3].toLowerCase()
+              unitcode:  parseInt(m[4], 10)
+              state:     (if m[5] is "On" then true else false)
+            }
+            env.logger.debug("Event: " + JSON.stringify(event))
+            @emit 'event', event
+            if event.direction is "tx" and @unitsContainer[event.housecode] and unit = @unitsContainer[event.housecode][event.unitcode]
+              env.logger.debug("House #{event.housecode} unit #{event.unitcode} has state #{event.state}");
+              unit._setState(event.state)
 
           # Handling simple on/off
           #  example: 05/30 20:59:20 Tx PL HouseUnit: P1
@@ -191,7 +208,7 @@ module.exports = (env) ->
       @name      = uconf.name
       @housecode = uconf.housecode.toLowerCase()
       @unitcode  = parseInt(uconf.unitcode, 10)
-      @protocol  = uconf.protocol
+      @protocol  = uconf.protocol || "pl" # TODO Fixme: json-schema doesn't handle the protocol-default
 
       env.logger.debug("Initiated unit with: housecode='#{@housecode}', unitcode='#{@unitcode}, id='#{@id}', name='#{@name}', protocol='#{@protocol}'")
 
