@@ -62,14 +62,16 @@ Under "devices" add (something like):
       "class": "MochadSwitch",
       "name": "Kitchen Light",
       "housecode": "P",
-      "unitcode": 1
+      "unitcode": 1,
+      "protocol": "pl"
     },  
     {
       "id": "light-living",
       "class": "MochadSwitch",
       "name": "Living Light",
       "housecode": "P",
-      "unitcode": 2
+      "unitcode": 2,
+      "protocol": "rf"
     }
   ]
 }   
