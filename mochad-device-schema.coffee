@@ -1,6 +1,6 @@
 module.exports = {
   title: "pimatic-mochad device config schemas"
-  Mochad: 
+  Mochad:
     title: "Mochad config options"
     type: "object"
     properties:
@@ -29,9 +29,9 @@ module.exports = {
         description: "Units that this mochad handles"
         type: "array"
         default: []
-        items: 
-          type: "object",  
-          properties: 
+        items:
+          type: "object",
+          properties:
             id:
               description: "Unique id"
               type: "string"
@@ -45,7 +45,7 @@ module.exports = {
               description: "Unique name"
               type: "string"
               required: true
-            housecode:   
+            housecode:
               description: "X10 housecode"
               type: "string"
               required: true
@@ -56,4 +56,9 @@ module.exports = {
               required: true
               minimum: 1
               maximum: 16
+            protocol:
+              description: "X10 protocol (RF/PL)"
+              type: "string"
+              default: "pl"
+              enum: ["rf", "pl"]
 }

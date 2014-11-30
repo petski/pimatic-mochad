@@ -15,17 +15,17 @@ module.exports = (env) ->
   class MochadPlugin extends env.plugins.Plugin
 
     # ####init()
-    #  
+    #
     # #####params:
     #  * `app` is the [express] instance the framework is using.
     #  * `framework` the framework itself
-    #  * `config` the properties the user specified as config for your plugin in the `plugins` 
-    #     section of the config.json file 
-    # 
+    #  * `config` the properties the user specified as config for your plugin in the `plugins`
+    #     section of the config.json file
+    #
     init: (app, @framework, config) =>
 
       deviceConfigSchema = require("./mochad-device-schema")
-       
+
       @framework.deviceManager.registerDeviceClass("Mochad", {
         configDef: deviceConfigSchema.Mochad,
         createCallback: (config) => new Mochad(@framework, config)
@@ -35,10 +35,10 @@ module.exports = (env) ->
   class Mochad extends env.devices.Sensor
 
     # ####constructor()
-    #  
+    #
     # #####params:
     #  * `deviceConfig`
-    # 
+    #
     constructor: (@framework, @config) ->
 
       @id        = @config.id
@@ -53,9 +53,9 @@ module.exports = (env) ->
 
       for uconf in @units
         switch uconf.class
-          when "MochadSwitch" 
+          when "MochadSwitch"
             unit = new MochadSwitch(@, uconf)
-            @unitsContainer[unit.housecode] ||= {} 
+            @unitsContainer[unit.housecode] ||= {}
             if @unitsContainer[unit.housecode][unit.unitcode]
               throw new Error "Unit #{unit.housecode}#{unit.unitcode} not unique in configuration"
             @framework.deviceManager.registerDevice(unit)
@@ -67,7 +67,7 @@ module.exports = (env) ->
       super()
 
     # ####initConnection()
-    # 
+    #
     initConnection: (host, port)->
 
       # TODO Test 1) Start with non-working connection, make connection     work
@@ -115,11 +115,10 @@ module.exports = (env) ->
               direction: m[1].toLowerCase(),
               housecode: m[3].toLowerCase(),
               unitcode:  "*" + m[4],
-              state:     (if m[5] is "On" then true else false) 
+              state:     (if m[5] is "On" then true else false)
             }
-            env.logger.debug("Event: " + JSON.stringify(event))
             @emit 'event', event
-            if event.protocol is "pl" and event.direction is "tx" and @unitsContainer[event.housecode]
+            if event.protocol in ["pl","rf"] and event.direction is "tx" and @unitsContainer[event.housecode]
               for unitcode, unit of @unitsContainer[event.housecode]
                 env.logger.debug("House #{event.housecode} unit #{unitcode} has state #{event.state}");
                 unit._setState(event.state)
@@ -135,19 +134,20 @@ module.exports = (env) ->
             lastSeen.unitcode  = parseInt(m[2], 10)
             env.logger.debug("Event: " + JSON.stringify(lastSeen))
 
-          if lastSeen.housecode and lastSeen.unitcode and m = /\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+(On|Off)$/m.exec(lines)
+          if lastSeen.housecode and lastSeen.unitcode and m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+HouseUnit:\s+([A-P])(\d{1,2})\s+Func:\s+(On|Off)/m.exec(lines)
             event = {
-              protocol:  m[2].toLowerCase(),
-              direction: m[1].toLowerCase(),
-              housecode: m[3].toLowerCase(),
-              unitcode:  null, # filled later
-              state:     (if m[4] is "On" then true else false) 
+              protocol:  m[2].toLowerCase()
+              direction: m[1].toLowerCase()
+              housecode: m[3].toLowerCase()
+              unitcode:  parseInt(m[4], 10)
+              state:     (if m[5] is "On" then true else false)
             }
+
             if event.housecode == lastSeen.housecode
               event.unitcode = lastSeen.unitcode
               env.logger.debug("Event: " + JSON.stringify(event))
               @emit 'event', event
-              if event.protocol is "pl" and event.direction is "tx" and @unitsContainer[event.housecode] and unit = @unitsContainer[event.housecode][event.unitcode]
+              if event.protocol in ["pl", "rf"] and event.direction is "tx" and @unitsContainer[event.housecode] and unit = @unitsContainer[event.housecode][event.unitcode]
                 unit._setState(event.state)
         ).bind(@)
       ).bind(@)).connect(port, host);
@@ -158,13 +158,13 @@ module.exports = (env) ->
         @sendCommand("st")
       ).bind(@)
 
-      reconnector.on 'disconnect', ((err) -> 
+      reconnector.on 'disconnect', ((err) ->
         env.logger.error("Disconnected from #{@host}:#{@port}: " + err)
         @connection = null;
       ).bind(@)
 
     # ####sendCommand()
-    #  
+    #
     # #####params:
     #  * `connection`
     #  * `command`
@@ -181,27 +181,28 @@ module.exports = (env) ->
   class MochadSwitch extends env.devices.SwitchActuator
 
     # ####constructor()
-    #  
+    #
     # #####params:
     #  * `deviceConfig`
-    # 
+    #
     constructor: (@Mochad, uconf) ->
       @id        = uconf.id
       @name      = uconf.name
       @housecode = uconf.housecode.toLowerCase()
       @unitcode  = parseInt(uconf.unitcode, 10)
+      @protocol  = uconf.protocol
 
-      env.logger.debug("Initiated unit with: housecode='#{@housecode}', unitcode='#{@unitcode}, id='#{@id}', name='#{@name}'")
+      env.logger.debug("Initiated unit with: housecode='#{@housecode}', unitcode='#{@unitcode}, id='#{@id}', name='#{@name}', protocol='#{@protocol}'")
 
       super()
 
     # ####changeStateTo()
-    #  
+    #
     # #####params:
     #  * `state`
-    # 
+    #
     changeStateTo: (state) ->
-      @Mochad.sendCommand("pl #{@housecode}#{@unitcode} " + ( if state then "on" else "off" ))
+      @Mochad.sendCommand("#{@protocol} #{@housecode}#{@unitcode} " + ( if state then "on" else "off" ))
 
   # TODO Needs to be implemented
   class MochadActionProvider extends env.actions.ActionProvider
@@ -209,7 +210,7 @@ module.exports = (env) ->
     constructor: (@framework) ->
     parseAction: (input, context) =>
 
-      mochadDevices = _(@framework.devices).values().filter( 
+      mochadDevices = _(@framework.devices).values().filter(
         (device) => device instanceof Mochad
       ).value()
 
@@ -223,7 +224,7 @@ module.exports = (env) ->
         .match('tell ')
         .matchDevice(mochadDevices, (m, d) =>
           m.match(' to send ')
-            .matchStringWithVars((m, ct) => 
+            .matchStringWithVars((m, ct) =>
               if device? and device.id isnt d.id
                 context?.addError(""""#{input.trim()}" is ambiguous.""")
                 return
@@ -232,7 +233,7 @@ module.exports = (env) ->
               match = m.getFullMatch()
             )
         )
-      
+
       if match
         return {
           token: match
@@ -256,12 +257,12 @@ module.exports = (env) ->
 
   # TODO Needs to be implemented
   class MochadPredicateProvider extends env.predicates.PredicateProvider
-  
+
     constructor: (@framework) ->
-  
+
     parsePredicate: (input, context) ->
 
-      mochadDevices = _(@framework.devices).values().filter( 
+      mochadDevices = _(@framework.devices).values().filter(
         (device) => device instanceof Mochad
       ).value()
 
@@ -275,7 +276,7 @@ module.exports = (env) ->
       m = M(input, context)
         .matchDevice(mochadDevices, (m, d) =>
           m.match([' receives ', ' sends '], (m, s) ->
-            m.matchStringWithVars((m, ct) => 
+            m.matchStringWithVars((m, ct) =>
               if device? and device.id isnt d.id
                 context?.addError(""""#{input.trim()}" is ambiguous.""")
                 return
@@ -286,7 +287,7 @@ module.exports = (env) ->
             )
           )
         )
-      
+
       if match
         return {
           token: match
@@ -300,6 +301,6 @@ module.exports = (env) ->
 
     constructor: (@framework, device, direction, commandTokens) ->
 
-  # ###Wrap up 
+  # ###Wrap up
   myMochadPlugin = new MochadPlugin
   return myMochadPlugin
