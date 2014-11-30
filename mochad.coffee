@@ -124,7 +124,7 @@ module.exports = (env) ->
                 env.logger.debug("House #{event.housecode} unit #{unitcode} has state #{event.state}");
                 unit._setState(event.state)
 
-          # Handling simple on/off (CM19a-style?)
+          # Handling simple on/off (RF-style)
           # 11/30 17:57:12 Tx RF HouseUnit: A10 Func: On
           # 11/30 17:57:24 Tx RF HouseUnit: A10 Func: Off
           else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+HouseUnit:\s+([A-P])(\d{1,2})\s+Func:\s+(On|Off)/m.exec(lines) 
@@ -141,7 +141,7 @@ module.exports = (env) ->
               env.logger.debug("House #{event.housecode} unit #{event.unitcode} has state #{event.state}");
               unit._setState(event.state)
 
-          # Handling simple on/off
+          # Handling simple on/off (PL-style)
           #  example: 05/30 20:59:20 Tx PL HouseUnit: P1
           #  example: 05/30 20:59:20 Tx PL House: P Func: On
           #  example2: 23:42:03.196 [pimatic-mochad] 09/01 23:42:03 Tx PL HouseUnit: P1
