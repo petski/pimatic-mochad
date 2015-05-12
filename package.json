@@ -1,8 +1,12 @@
-{ 
+{
   "configSchema": "mochad-config-schema.coffee",
   "name": "pimatic-mochad",
   "description": "Connects pimatic to mochad (an X10-controller controller)",
-  "keywords" : [ "pimatic", "x10", "devices" ],
+  "keywords" : [
+    "pimatic",
+    "x10",
+    "devices"
+  ],
   "author": {
     "name": "Patrick Kuijvenhoven",
     "email": "patrick.kuijvenhoven@gmail.com",
