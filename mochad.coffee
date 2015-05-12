@@ -70,6 +70,8 @@ module.exports = (env) ->
     #
     initConnection: (host, port)->
 
+      @lastSeen = {}
+
       # TODO Test 1) Start with non-working connection, make connection     work
       # TODO Test 2) Start with     working connection, make connection non-working and switch button in frontend
       reconnector = reconnect(((conn) ->
@@ -83,8 +85,6 @@ module.exports = (env) ->
           lines = data.toString()
 
           # env.logger.debug(lines)
-
-          lastSeen = {} # TODO should be in 'this' to make it propertly work?
 
           # Handling "st" result
           # 06/04 21:50:55 Device status
@@ -148,11 +148,11 @@ module.exports = (env) ->
           #  example2: 23:42:03.196 [pimatic-mochad]>
           #  example2: 23:42:03.198 [pimatic-mochad] 09/01 23:42:03 Tx PL House: P Func: On
           else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(?:Rx|Tx)\s+(?:RF|PL)\s+HouseUnit:\s+([A-P])(\d{1,2})/m.exec(lines)
-            lastSeen.housecode = m[1].toLowerCase()
-            lastSeen.unitcode  = parseInt(m[2], 10)
+            @lastSeen.housecode = m[1].toLowerCase()
+            @lastSeen.unitcode  = parseInt(m[2], 10)
             env.logger.debug("Event: " + JSON.stringify(lastSeen))
 
-          if lastSeen.housecode and lastSeen.unitcode and m = /\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+(On|Off)$/m.exec(lines)
+          if @lastSeen.housecode and @lastSeen.unitcode and m = /\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+(On|Off)$/m.exec(lines)
             event = {
               protocol:  m[2].toLowerCase()
               direction: m[1].toLowerCase()
@@ -161,8 +161,8 @@ module.exports = (env) ->
               state:     (if m[4] is "On" then true else false)
             }
 
-            if event.housecode == lastSeen.housecode
-              event.unitcode = lastSeen.unitcode
+            if event.housecode == @lastSeen.housecode
+              event.unitcode = @lastSeen.unitcode
               env.logger.debug("Event: " + JSON.stringify(event))
               @emit 'event', event
               if event.protocol in ["pl", "rf"] and event.direction is "tx" and @unitsContainer[event.housecode] and unit = @unitsContainer[event.housecode][event.unitcode]
