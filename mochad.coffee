@@ -150,7 +150,7 @@ module.exports = (env) ->
           else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(?:Rx|Tx)\s+(?:RF|PL)\s+HouseUnit:\s+([A-P])(\d{1,2})/m.exec(lines)
             @lastSeen.housecode = m[1].toLowerCase()
             @lastSeen.unitcode  = parseInt(m[2], 10)
-            env.logger.debug("Event: " + JSON.stringify(lastSeen))
+            env.logger.debug("Event: " + JSON.stringify(@lastSeen))
 
           if @lastSeen.housecode and @lastSeen.unitcode and m = /\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+(On|Off)$/m.exec(lines)
             event = {
