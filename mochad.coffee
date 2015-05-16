@@ -2,6 +2,9 @@
 
 module.exports = (env) ->
 
+  # Require lodash
+  _ = env.require 'lodash'
+
   # Require the bluebird promise library
   Promise = env.require 'bluebird'
 
@@ -31,6 +34,16 @@ module.exports = (env) ->
         createCallback: (config) => new Mochad(@framework, config)
       })
 
+      @framework.on "after init", =>
+        # Check if the mobile-frontent was loaded and get a instance
+        mobileFrontend = @framework.pluginManager.getPlugin 'mobile-frontend'
+        if mobileFrontend?
+          mobileFrontend.registerAssetFile 'js', "pimatic-mochad/app/mochad-device.coffee"
+          mobileFrontend.registerAssetFile 'css', "pimatic-mochad/app/css/mochad-device.css"
+          mobileFrontend.registerAssetFile 'html', "pimatic-mochad/app/mochad-device.jade"
+        else
+          env.logger.warn "your plugin could not find the mobile-frontend. No gui will be available"
+
   # #### Mochad class
   class Mochad extends env.devices.Sensor
 
@@ -55,11 +68,15 @@ module.exports = (env) ->
         switch uconf.class
           when "MochadSwitch"
             unit = new MochadSwitch(@, uconf)
-            @unitsContainer[unit.housecode] ||= {}
-            if @unitsContainer[unit.housecode][unit.unitcode]
-              throw new Error "Unit #{unit.housecode}#{unit.unitcode} not unique in configuration"
-            @framework.deviceManager.registerDevice(unit)
-            @unitsContainer[unit.housecode][unit.unitcode] = unit;
+          when "MochadDimmer"
+            unit = new MochadDimmer(@, uconf)
+
+        if unit?
+          @unitsContainer[unit.housecode] ||= {}
+          if @unitsContainer[unit.housecode][unit.unitcode]
+            throw new Error "Unit #{unit.housecode}#{unit.unitcode} not unique in configuration"
+          @framework.deviceManager.registerDevice(unit)
+          @unitsContainer[unit.housecode][unit.unitcode] = unit;
 
       @connection = null
       @initConnection(@host, @port)
@@ -222,6 +239,39 @@ module.exports = (env) ->
     changeStateTo: (state) ->
       @Mochad.sendCommand("#{@protocol} #{@housecode}#{@unitcode} " + ( if state then "on" else "off" ))
 
+  # #### MochadDimmer class
+  class MochadDimmer extends MochadSwitch
+
+    # ####constructor()
+    #
+    # #####params:
+    #  * `deviceConfig`
+    #
+    constructor: (@Mochad, uconf) ->
+      super @Mochad, uconf
+      @actions = _.merge @actions,
+        brighten:
+          description: "brighten the light"
+        dim:
+          description: "dim the light"
+
+    template: "mochad-dimmer"
+    getTemplateName: -> @template
+
+    # ####changeLux()
+    #
+    # #####params:
+    #  * `direaction`
+    #
+    changeLux: (direction) ->
+      @Mochad.sendCommand("#{@protocol} #{@housecode}#{@unitcode} " + ( if direction is "up" then "bright" else "dim" ))
+
+    brighten: () ->
+      @changeLux 'up'
+
+    dim: () ->
+      @changeLux 'down'
+
   # TODO Needs to be implemented
   class MochadActionProvider extends env.actions.ActionProvider
 
@@ -243,7 +293,7 @@ module.exports = (env) ->
         .matchDevice(mochadDevices, (m, d) =>
           m.match(' to send ')
             .matchStringWithVars((m, ct) =>
-              if device? and device.id isnt d.id
+              if device? and d? and device.id isnt d.id
                 context?.addError(""""#{input.trim()}" is ambiguous.""")
                 return
               device = d
@@ -295,7 +345,7 @@ module.exports = (env) ->
         .matchDevice(mochadDevices, (m, d) =>
           m.match([' receives ', ' sends '], (m, s) ->
             m.matchStringWithVars((m, ct) =>
-              if device? and device.id isnt d.id
+              if device? and d? and device.id isnt d.id
                 context?.addError(""""#{input.trim()}" is ambiguous.""")
                 return
               device = d

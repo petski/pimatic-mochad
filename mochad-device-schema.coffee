@@ -40,7 +40,7 @@ module.exports = {
               description: "Class"
               type: "string"
               required: true
-              pattern: "^Mochad(Switch)$"
+              pattern: "^Mochad(Switch|Dimmer)$"
             name:
               description: "Unique name"
               type: "string"
