@@ -1,6 +1,14 @@
-$(document).on( "templateinit", (event) ->
+$(document).on( "pagebeforecreate", (event) ->
 
   class MochadDimmerItem extends pimatic.SwitchItem
+
+    getTemplateName: -> "mochad-dimmer"
+
+    constructor: (data) ->
+      super(data)
+      # Do something, after create: console.log(this)
+    afterRender: (elements) ->
+      super(elements)
 
     onShutterDownClicked: ->
       @_ajaxCall('dim')
