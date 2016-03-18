@@ -109,9 +109,9 @@ module.exports = (env) ->
           # 06/04 21:50:55 House P: 1=1,2=0,3=1,4=0,5=1,6=0,7=0,8=0,9=0,10=0,11=0,12=0,13=0,14=0,15=0,16=0
           # 06/04 21:50:55 Security sensor status
 
-          if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+Device status\n((?:\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+House\s+[A-P]:\s+(?:\d{1,2}=[01],?)+\n)*)/m.exec(lines)
+          if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+Device status\n((?:\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+House\s+[a-pA-P]:\s+(?:\d{1,2}=[01],?)+\n)*)/m.exec(lines)
             for houseline in m[1].split("\n")
-              if n = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+House\s+([A-P]):\s+((?:\d{1,2}=[01],?)+)$/.exec(houseline)
+              if n = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s+House\s+([a-pA-P]):\s+((?:\d{1,2}=[01],?)+)$/.exec(houseline)
                 housecode = n[1].toLowerCase()
                 for code2status in n[2].split(",")
                   o = code2status.split("=")
@@ -126,7 +126,7 @@ module.exports = (env) ->
           #  example: 05/22 00:34:04 Rx PL House: P Func: All units off
           # example2: 00:04:29.391 [pimatic-mochad] 09/02 00:04:29 Rx PL House: P Func: All units off
           # example2: 00:04:29.391 [pimatic-mochad]>
-          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+All\s+(units|lights)\s+(on|off)$/m.exec(lines)
+          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([a-pA-P])\s+Func:\s+All\s+(units|lights)\s+(on|off)$/m.exec(lines)
             event = {
               protocol:  m[2].toLowerCase(),
               direction: m[1].toLowerCase(),
@@ -144,7 +144,7 @@ module.exports = (env) ->
           # Handling simple on/off (RF-style)
           # 11/30 17:57:12 Tx RF HouseUnit: A10 Func: On
           # 11/30 17:57:24 Tx RF HouseUnit: A10 Func: Off
-          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+HouseUnit:\s+([A-P])(\d{1,2})\s+Func:\s+(On|Off)/m.exec(lines) 
+          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+HouseUnit:\s+([a-pA-P])(\d{1,2})\s+Func:\s+(On|Off)/m.exec(lines) 
             event = {
               protocol:  m[2].toLowerCase()
               direction: m[1].toLowerCase()
@@ -164,12 +164,12 @@ module.exports = (env) ->
           #  example2: 23:42:03.196 [pimatic-mochad] 09/01 23:42:03 Tx PL HouseUnit: P1
           #  example2: 23:42:03.196 [pimatic-mochad]>
           #  example2: 23:42:03.198 [pimatic-mochad] 09/01 23:42:03 Tx PL House: P Func: On
-          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(?:Rx|Tx)\s+(?:RF|PL)\s+HouseUnit:\s+([A-P])(\d{1,2})/m.exec(lines)
+          else if m = /^\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(?:Rx|Tx)\s+(?:RF|PL)\s+HouseUnit:\s+([a-pA-P])(\d{1,2})/m.exec(lines)
             @lastSeen.housecode = m[1].toLowerCase()
             @lastSeen.unitcode  = parseInt(m[2], 10)
             env.logger.debug("Event: " + JSON.stringify(@lastSeen))
 
-          if @lastSeen.housecode and @lastSeen.unitcode and m = /\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([A-P])\s+Func:\s+(On|Off)$/m.exec(lines)
+          if @lastSeen.housecode and @lastSeen.unitcode and m = /\d{2}\/\d{2}\s+(?:\d{2}:){2}\d{2}\s(Rx|Tx)\s+(RF|PL)\s+House:\s+([a-pA-P])\s+Func:\s+(On|Off)$/m.exec(lines)
             event = {
               protocol:  m[2].toLowerCase()
               direction: m[1].toLowerCase()
@@ -255,6 +255,7 @@ module.exports = (env) ->
         dim:
           description: "dim the light"
 
+    # TODO documentation says this is not required, but it actually is ...
     template: "mochad-dimmer"
     getTemplateName: -> @template
 
