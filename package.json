@@ -27,7 +27,7 @@
     "mochad-config-schema.coffee",
     "mochad-device-schema.coffee"
   ],
-  "version": "0.8.2",
+  "version": "0.8.3",
   "homepage": "https://github.com/petski/pimatic-mochad",
   "repository": {
     "type": "git",
