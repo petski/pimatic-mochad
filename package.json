@@ -27,7 +27,7 @@
     "mochad-config-schema.coffee",
     "mochad-device-schema.coffee"
   ],
-  "version": "0.8.3",
+  "version": "0.9.53",
   "homepage": "https://github.com/petski/pimatic-mochad",
   "repository": {
     "type": "git",
@@ -38,7 +38,7 @@
     "reconnect-net": "~0.0.0"
   },
   "peerDependencies": {
-    "pimatic": "0.8.*"
+    "pimatic": "0.9.*"
   },
   "engines": {
     "node": ">0.10.x",
